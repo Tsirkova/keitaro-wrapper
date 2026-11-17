@@ -29,14 +29,18 @@ class CampaignCreate(BaseModel):
         return value.upper()
 
 
-class OfferAllocation(BaseModel):
+class OfferSnapshot(BaseModel):
     offer_id: int = Field(gt=0)
+    share: int = Field(ge=0, le=100)
+
+
+class OfferAllocation(OfferSnapshot):
     share: int = Field(gt=0, le=100)
 
 
 class OfferReplace(BaseModel):
     offers: list[OfferAllocation] = Field(min_length=1, max_length=100)
-    expected_offers: list[OfferAllocation]
+    expected_offers: list[OfferSnapshot] = Field(max_length=1000)
 
 
 @app.exception_handler(KeitaroError)
