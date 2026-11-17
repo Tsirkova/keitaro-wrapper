@@ -1,6 +1,20 @@
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let data = {offers:[],campaigns:[]}, current = null, drafts = new Map();
+let loadVersion = 0, saving = false;
+
+const active = item => !item.state || item.state === 'active';
+const offerOptions = items => items.filter(active).map(item => `<option value="${esc(item.id+' · '+item.name)}"></option>`).join('');
+const offerId = value => Number(value.split(' · ')[0]);
+function newDraft(stream) {
+  const offers = (stream.offers || []).filter(offer => offer.state !== 'disabled');
+  const original = offers.map(offer => offer.offer_id);
+  return {original, ids:[...original], originalShares:new Map(offers.map(offer => [offer.offer_id,Number(offer.share)])), pins:new Map()};
+}
+function setSaving(value) {
+  saving = value;
+  document.querySelectorAll('#campaign-detail button, #campaign-detail input, #campaign-select, #reload').forEach(control => {control.disabled = value;});
+}
 
 async function api(url, options={}) {
   const response = await fetch(url,{headers:{'Content-Type':'application/json'},...options});
@@ -30,27 +44,29 @@ async function bootstrap(selectedId) {
   try {
     data=await api('/api/bootstrap');
     $('name').placeholder=data.configured_prefix+'campaign1';
-    options('offer_id',data.offers,x=>x.name,'Выберите оффер');
-    options('domain_id',data.domains,x=>x.name||x.domain,'Выберите домен');
+    $('offer-options').innerHTML=offerOptions(data.offers);
+    options('domain_id',data.domains.filter(active),x=>x.name||x.domain,'Выберите домен');
     options('group_id',data.groups,x=>x.name,'Выберите группу');
-    options('traffic_source_id',data.sources,x=>x.name,'Выберите источник');
+    options('traffic_source_id',data.sources.filter(active),x=>x.name,'Выберите источник');
     options('campaign-select',data.campaigns,x=>x.name,'Выберите кампанию');
     if(selectedId){$('campaign-select').value=String(selectedId);await loadCampaign();}
   } catch(error){notice('create-message',error.message,true);}
 }
 async function loadCampaign() {
+  const version=++loadVersion;
   const campaignId=Number($('campaign-select').value);
-  if(!campaignId){$('campaign-detail').innerHTML='';current=null;drafts=new Map();return;}
+  $('campaign-detail').innerHTML='';current=null;drafts=new Map();
+  if(!campaignId)return;
   try {
-    current=await api(`/api/campaigns/${campaignId}`);drafts=new Map();
+    const result=await api(`/api/campaigns/${campaignId}`);
+    if(version!==loadVersion)return;
+    current=result;
     for(const stream of current.streams||[]){
       if(stream.schema!=='landings')continue;
-      const original=(stream.offers||[]).filter(o=>o.state!=='disabled').map(o=>o.offer_id);
-      const originalShares=new Map((stream.offers||[]).filter(o=>o.state!=='disabled').map(o=>[o.offer_id,Number(o.share||0)]));
-      drafts.set(stream.id,{original,ids:[...original],originalShares,pins:new Map()});
+      drafts.set(stream.id,newDraft(stream));
     }
     renderCampaign();
-  } catch(error){notice('edit-message',error.message,true);}
+  } catch(error){if(version===loadVersion)notice('edit-message',error.message,true);}
 }
 function renderCampaign() {
   if(!current)return;
@@ -65,8 +81,8 @@ function renderCampaign() {
         const offer=data.offers.find(x=>x.id===id),removed=!draft.ids.includes(id);
         return `<div class="offer ${removed?'removed':''}"><span>${esc(offer?.name||'Оффер')} <small>#${id} · ${shares.get(id)||0}%${removed?' · удалён из черновика':''}</small></span><div class="offer-actions">${removed?'':`<button class="secondary" data-pin="${id}" data-stream="${stream.id}">${draft.pins.has(id)?'Открепить':'Закрепить долю'}</button>`}<button class="${removed?'secondary':'danger'}" data-${removed?'restore':'remove'}="${id}" data-stream="${stream.id}">${removed?'Вернуть':'Удалить'}</button></div></div>`;
       }).join('');
-      const available=data.offers.filter(x=>x.state!=='deleted'&&!allIds.includes(x.id));
-      return `<div class="stream ${changed?'draft':''}"><div class="stream-head"><b>${esc(stream.name||'Поток')} · #${stream.id}</b><span class="pill">${esc(stream.type||'')}</span></div><div class="summary"><div>Активных офферов: <b>${draft.ids.length}</b></div><div>Сумма долей: <b>${[...shares.values()].reduce((a,b)=>a+b,0)}%</b></div></div>${changed?`<p class="muted">Изменения пока не отправлены в Keitaro.</p><div class="row draft-actions"><button data-save="${stream.id}">Отправить в Keitaro</button><button class="secondary" data-cancel="${stream.id}">Отменить</button></div>`:''}<div class="offers">${rows}</div><div class="row"><select aria-label="Добавить оффер" id="add-${stream.id}"><option value="">Выберите оффер</option>${available.map(x=>`<option value="${x.id}">${esc(x.name)} · #${x.id}</option>`).join('')}</select><button data-add="${stream.id}">Добавить</button></div></div>`;
+      const available=data.offers.filter(x=>active(x)&&!allIds.includes(x.id));
+      return `<div class="stream ${changed?'draft':''}"><div class="stream-head"><b>${esc(stream.name||'Поток')} · #${stream.id}</b><span class="pill">${esc(stream.type||'')}</span></div><div class="summary"><div>Активных офферов: <b>${draft.ids.length}</b></div><div>Сумма долей: <b>${[...shares.values()].reduce((a,b)=>a+b,0)}%</b></div></div>${changed?`<p class="muted">Изменения пока не отправлены в Keitaro.</p><div class="row draft-actions"><button data-save="${stream.id}">Отправить в Keitaro</button><button class="secondary" data-cancel="${stream.id}">Отменить</button></div>`:''}<div class="offers">${rows}</div><div class="row"><input aria-label="Добавить оффер" id="add-${stream.id}" list="offers-${stream.id}" placeholder="Название или ID" autocomplete="off"><datalist id="offers-${stream.id}">${offerOptions(available)}</datalist><button data-add="${stream.id}">Добавить</button></div></div>`;
     }).join('');
 }
 
@@ -74,7 +90,8 @@ $('create-form').addEventListener('submit',async event=>{
   event.preventDefault();const button=event.submitter;button.disabled=true;
   try {
     const body=Object.fromEntries(new FormData(event.target));
-    for(const key of ['offer_id','domain_id','group_id','traffic_source_id'])body[key]=Number(body[key]);
+    body.offer_id=offerId(body.offer_id);
+    for(const key of ['domain_id','group_id','traffic_source_id'])body[key]=Number(body[key]);
     const result=await api('/api/campaigns',{method:'POST',body:JSON.stringify(body)});
     notice('create-message',`Создана кампания #${result.campaign.id} с двумя потоками.`);
     await bootstrap(result.campaign.id);
@@ -84,13 +101,13 @@ $('campaign-select').addEventListener('change',loadCampaign);
 $('reload').addEventListener('click',()=>bootstrap(Number($('campaign-select').value)));
 $('campaign-detail').addEventListener('click',async event=>{
   const button=event.target.closest('button[data-add],button[data-remove],button[data-restore],button[data-save],button[data-cancel],button[data-pin]');
-  if(!button)return;
+  if(!button||saving)return;
   const streamId=Number(button.dataset.stream||button.dataset.add||button.dataset.save||button.dataset.cancel),draft=drafts.get(streamId);
   if(!draft)return;
   if(button.dataset.add){
-    const offerId=Number($(`add-${streamId}`).value);
-    if(!offerId)return notice('edit-message','Выберите оффер.',true);
-    draft.ids.push(offerId);
+    const selectedId=offerId($(`add-${streamId}`).value);
+    if(!data.offers.some(item=>item.id===selectedId&&active(item))||draft.ids.includes(selectedId))return notice('edit-message','Выберите доступный оффер.',true);
+    draft.ids.push(selectedId);
     if(!percentages(draft)){draft.ids.pop();return notice('edit-message','Снимите закрепление доли, чтобы добавить оффер.',true);}
     renderCampaign();
   } else if(button.dataset.remove){
@@ -101,7 +118,8 @@ $('campaign-detail').addEventListener('click',async event=>{
     renderCampaign();
   } else if(button.dataset.restore){
     const offerId=Number(button.dataset.restore),originalIndex=draft.original.indexOf(offerId);
-    const insertAt=draft.ids.filter(id=>draft.original.indexOf(id)<originalIndex).length;
+    const next=draft.ids.findIndex(id=>draft.original.indexOf(id)===-1||draft.original.indexOf(id)>originalIndex);
+    const insertAt=next===-1?draft.ids.length:next;
     draft.ids.splice(insertAt,0,offerId);
     if(!percentages(draft)){draft.ids.splice(insertAt,1);return notice('edit-message','Снимите закрепление доли перед восстановлением.',true);}
     renderCampaign();
@@ -112,14 +130,20 @@ $('campaign-detail').addEventListener('click',async event=>{
     renderCampaign();
   } else if(button.dataset.cancel){draft.ids=[...draft.original];draft.pins=new Map();renderCampaign();}
   else if(button.dataset.save){
-    button.disabled=true;
+    const campaignId=current.campaign.id;
+    setSaving(true);
     try {
       const shares=percentages(draft);
       const offers=draft.ids.map(id=>({offer_id:id,share:shares.get(id)}));
       const expected_offers=draft.original.map(id=>({offer_id:id,share:draft.originalShares.get(id)}));
-      await api(`/api/campaigns/${current.campaign.id}/streams/${streamId}/offers`,{method:'PUT',body:JSON.stringify({offers,expected_offers})});
-      notice('edit-message','Изменения сохранены в Keitaro.');await loadCampaign();
-    } catch(error){notice('edit-message',error.message,true);button.disabled=false;}
+      const stream=await api(`/api/campaigns/${campaignId}/streams/${streamId}/offers`,{method:'PUT',body:JSON.stringify({offers,expected_offers})});
+      if(current?.campaign.id===campaignId){
+        current.streams=current.streams.map(item=>item.id===streamId?stream:item);
+        drafts.set(streamId,newDraft(stream));
+        renderCampaign();
+        notice('edit-message','Изменения сохранены в Keitaro.');
+      }
+    } catch(error){notice('edit-message',error.message,true);} finally {setSaving(false);}
   }
 });
 bootstrap();
