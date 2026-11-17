@@ -10,6 +10,8 @@
 
 ## Установка и запуск
 
+Все команды выполняются из корневой папки проекта.
+
 ```bash
 python -m venv .venv
 # Windows: .venv\Scripts\activate
