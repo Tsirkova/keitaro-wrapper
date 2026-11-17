@@ -20,7 +20,7 @@
       <form id="create-form">
         <label for="name">Название</label><input id="name" name="name" required>
         <label for="country">Страна · ISO 3166-1 alpha-2</label><input id="country" name="country" maxlength="2" pattern="[A-Za-z]{2}" placeholder="AU" required>
-        <label for="offer_id">Оффер</label><select id="offer_id" name="offer_id" required></select>
+        <label for="offer_id">Оффер · поиск по названию или ID</label><input id="offer_id" name="offer_id" list="offer-options" placeholder="Название или ID оффера" autocomplete="off" required><datalist id="offer-options"></datalist>
         <label for="domain_id">Домен</label><select id="domain_id" name="domain_id" required></select>
         <label for="group_id">Группа</label><select id="group_id" name="group_id" required></select>
         <label for="traffic_source_id">Источник</label><select id="traffic_source_id" name="traffic_source_id" required></select>
