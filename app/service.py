@@ -54,7 +54,7 @@ def create_campaign(
             "campaign_id": campaign_id, "name": "Country → Google",
             "type": "regular", "position": 1, "schema": "redirect",
             "action_type": "http", "action_payload": settings.google_redirect_url,
-            "filters": [{"name": "country", "mode": "accept", "payload": [country]}],
+            "filters": [{"name": "country", "mode": "accept", "payload": country.split(",")}],
         })
         offer = client.post("streams", {
             "campaign_id": campaign_id, "name": "Offer",

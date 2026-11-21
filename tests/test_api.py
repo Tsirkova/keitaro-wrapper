@@ -44,6 +44,27 @@ def test_create_normalizes_country_and_records_audit(api):
         assert (operation.action, operation.campaign_id) == ("create_campaign", 11)
 
 
+def test_create_accepts_several_countries(api):
+    client, fake, _ = api
+    response = client.post("/api/campaigns", json={
+        "name": settings.campaign_prefix + "geo", "country": "mx, au;ro AU", "offer_id": 5,
+        "domain_id": 1, "group_id": 1, "traffic_source_id": 1,
+    })
+    assert response.status_code == 201
+    assert fake.calls[1][2]["filters"][0]["payload"] == ["MX", "AU", "RO"]
+
+
+@pytest.mark.parametrize("country", ["", "AUS", "A1", "MX,A", "MX-AU"])
+def test_create_rejects_invalid_countries(api, country):
+    client, fake, _ = api
+    response = client.post("/api/campaigns", json={
+        "name": settings.campaign_prefix + "geo", "country": country, "offer_id": 5,
+        "domain_id": 1, "group_id": 1, "traffic_source_id": 1,
+    })
+    assert response.status_code == 422
+    assert not fake.calls
+
+
 def test_save_existing_zero_share_and_reject_stale_snapshot(api):
     client, fake, engine = api
     original = [{"offer_id": 5, "share": 100}, {"offer_id": 6, "share": 0}]

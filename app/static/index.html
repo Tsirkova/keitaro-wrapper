@@ -8,7 +8,7 @@
     :root{font:16px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;color:#17212b;background:#f3f5f8}
     *{box-sizing:border-box}body{margin:0}header{background:#132b39;color:#fff;padding:24px max(24px,calc((100vw - 1120px)/2))}h1{font-size:25px;margin:0}header p{margin:4px 0 0;color:#b9cbd5}
     main{max-width:1120px;margin:28px auto;padding:0 20px;display:grid;grid-template-columns:1fr 1fr;gap:22px}section{background:#fff;border:1px solid #dfe5eb;border-radius:14px;padding:24px;box-shadow:0 3px 12px #1226330a}h2{font-size:21px;margin:0 0 18px}h3{font-size:17px;margin:24px 0 10px}label{display:block;margin:14px 0 5px;font-weight:600;font-size:14px}input,select{width:100%;border:1px solid #cbd5dd;border-radius:8px;padding:11px;font:inherit;background:#fff}button{border:0;border-radius:8px;background:#216b55;color:#fff;padding:11px 16px;font:inherit;font-weight:650;cursor:pointer}button:hover{background:#185541}button:disabled{opacity:.55;cursor:wait}.secondary{background:#e9eef2;color:#213b49}.secondary:hover{background:#d8e2e9}.danger{background:#fbe8e8;color:#9b3030}.danger:hover{background:#f5d4d4}.row{display:flex;align-items:end;gap:8px}.row>*{flex:1}.row button{flex:0 0 auto}.muted{color:#637483;font-size:14px}.notice{margin:12px 0;padding:12px;border-radius:8px;background:#edf7f2;color:#19583e}.error{background:#fff1f1;color:#a02222}.stream{border:1px solid #e0e6ec;border-radius:10px;padding:14px;margin:12px 0}.stream-head{display:flex;justify-content:space-between;gap:10px}.pill{background:#e9eef2;border-radius:20px;padding:3px 9px;font-size:12px}.offers{margin-top:10px}.offer{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #edf0f3;padding:10px 0}.offer span{min-width:0}.offer small{color:#687887}.offer button{padding:7px 10px}.summary{display:flex;gap:14px;margin:12px 0}.summary div{padding:10px 13px;background:#f2f6f8;border-radius:8px}code{background:#eef2f5;border-radius:4px;padding:1px 4px}@media(max-width:780px){main{grid-template-columns:1fr}}
-    .stream.draft{background:#fffcef;border-color:#e4d39e}.offer.removed{opacity:.45}.draft-actions{justify-content:flex-start;margin:10px 0}.draft-actions>*{flex:0 0 auto}.offer-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.offer-actions button{font-size:12px}
+    .stream.draft{background:#fffcef;border-color:#e4d39e}.offer.removed{opacity:.45}.draft-actions{justify-content:flex-start;margin:10px 0}.draft-actions>*{flex:0 0 auto}.offer-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.offer-actions button{font-size:12px}.share-input{width:72px;padding:6px 8px;font-size:14px}.share-input.pinned{border-color:#216b55;background:#edf7f2}
   </style>
 </head>
 <body>
@@ -16,10 +16,10 @@
   <main>
     <section>
       <h2>Новая кампания</h2>
-      <p class="muted">Первый поток отправит выбранную страну на Google. Остальные посетители попадут на оффер.</p>
+      <p class="muted">Первый поток отправит посетителей из указанных стран на Google. Остальные посетители попадут на оффер.</p>
       <form id="create-form">
         <label for="name">Название</label><input id="name" name="name" required>
-        <label for="country">Страна · ISO 3166-1 alpha-2</label><input id="country" name="country" maxlength="2" pattern="[A-Za-z]{2}" placeholder="AU" required>
+        <label for="country">Geo · ISO-коды через запятую</label><input id="country" name="country" pattern="\s*[A-Za-z]{2}(\s*[,;\s]\s*[A-Za-z]{2})*\s*" placeholder="MX,AU,RO" title="Двухбуквенные коды стран через запятую, например MX,AU,RO" required>
         <label for="offer_id">Оффер · поиск по названию или ID</label><input id="offer_id" name="offer_id" list="offer-options" placeholder="Название или ID оффера" autocomplete="off" required><datalist id="offer-options"></datalist>
         <label for="domain_id">Домен</label><select id="domain_id" name="domain_id" required></select>
         <label for="group_id">Группа</label><select id="group_id" name="group_id" required></select>

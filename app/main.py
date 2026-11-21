@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -17,7 +18,7 @@ app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), na
 
 class CampaignCreate(BaseModel):
     name: str = Field(min_length=4, max_length=200)
-    country: str = Field(pattern=r"^[A-Za-z]{2}$")
+    country: str = Field(min_length=2, max_length=300, description="One or more ISO codes, e.g. MX,AU,RO")
     offer_id: int = Field(gt=0)
     domain_id: int = Field(gt=0)
     group_id: int = Field(gt=0)
@@ -25,8 +26,11 @@ class CampaignCreate(BaseModel):
 
     @field_validator("country")
     @classmethod
-    def uppercase_country(cls, value: str) -> str:
-        return value.upper()
+    def normalize_countries(cls, value: str) -> str:
+        codes = [code.upper() for code in re.split(r"[\s,;]+", value) if code]
+        if not codes or any(not re.fullmatch(r"[A-Z]{2}", code) for code in codes):
+            raise ValueError("Use two-letter ISO country codes separated by commas, e.g. MX,AU,RO")
+        return ",".join(dict.fromkeys(codes))
 
 
 class OfferSnapshot(BaseModel):

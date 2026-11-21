@@ -140,3 +140,39 @@ test('autocomplete selections send the numeric offer ID', async t => {
   await page.getByText('Создана кампания #11 с двумя потоками.').waitFor();
   assert.equal(writes[0].offer_id,3);
 });
+
+test('manual share input rebalances the other offers and can be saved without adding offers', async t => {
+  const {page,writes,select,shares} = await setup(t);
+  await select(11);
+  assert.equal(await page.locator('[data-save="22"]').count(),0);
+  await page.fill('[data-share="1"][data-stream="22"]','70');
+  await page.locator('[data-share="1"][data-stream="22"]').dispatchEvent('change');
+  assert.deepEqual(await shares(),[70,30]);
+  await page.click('[data-save="22"]');
+  await page.getByText('Изменения сохранены в Keitaro.').waitFor();
+  assert.deepEqual(writes[0].offers,[{offer_id:1,share:70},{offer_id:2,share:30}]);
+});
+
+test('pinning without editing keeps shares; impossible share is rejected', async t => {
+  const {page,select,add,shares} = await setup(t);
+  await select(11);
+  await page.click('[data-pin="1"][data-stream="22"]');
+  assert.deepEqual(await shares(),[50,50]);
+  assert.equal(await page.locator('[data-save="22"]').count(),0);
+  await add(3);
+  await page.fill('[data-share="2"][data-stream="22"]','100');
+  await page.locator('[data-share="2"][data-stream="22"]').dispatchEvent('change');
+  await page.getByText('Такая доля не помещается', {exact:false}).waitFor();
+  assert.deepEqual(await shares(),[50,25,25]);
+});
+
+test('geo accepts a comma separated list', async t => {
+  const {page,writes} = await setup(t);
+  await page.fill('#name','test_surname_demo');
+  await page.fill('#country','MX,AU,RO');
+  await page.fill('#offer_id','3 · Gamma');
+  for(const field of ['domain_id','group_id','traffic_source_id']) await page.selectOption('#'+field,'1');
+  await page.click('#create-form button');
+  await page.getByText('Создана кампания #11 с двумя потоками.').waitFor();
+  assert.equal(writes[0].country,'MX,AU,RO');
+});

@@ -52,6 +52,11 @@ def test_create_campaign_has_country_redirect_and_default_offer():
     assert (campaign["domain_id"], campaign["group_id"], campaign["traffic_source_id"]) == (1, "1", 1)
     assert geo["filters"] == [{"name": "country", "mode": "accept", "payload": ["AU"]}]
     assert geo["schema"] == "redirect"
+    create_campaign(
+        fake, name=settings.campaign_prefix + "multi", country="MX,AU,RO", offer_id=5,
+        domain_id=1, group_id=1, traffic_source_id=1,
+    )
+    assert fake.calls[4][2]["filters"][0]["payload"] == ["MX", "AU", "RO"]
     assert geo["action_payload"] == "https://www.google.com/"
     assert offer["type"] == "default"
     assert offer["schema"] == "landings"
